@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traductor en vivo — I.E.S. Averroes</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1117;--surface:#181b24;--surface-alt:#1e2230;--border:#2a2e3b;--text:#e4e6ed;--text-dim:#8b8f9e;--accent-es:#f59e0b;--accent-ua-light:#60a5fa;--red:#ef4444;--green:#22c55e}
+[data-theme="light"]{--bg:#f5f5f7;--surface:#fff;--surface-alt:#eeeef0;--border:#d1d1d6;--text:#1d1d1f;--text-dim:#6e6e73;--accent-es:#d97706;--accent-ua-light:#2563eb;--red:#dc2626;--green:#16a34a}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;transition:background .3s,color .3s}
+.school-banner{padding:8px 20px;background:linear-gradient(135deg,#1a2456,#2d3a8c);display:flex;align-items:center;justify-content:center;flex-shrink:0;border-bottom:2px solid #f59e0b}
+.school-name{font-size:18px;font-weight:800;letter-spacing:2px;color:#fff;text-transform:uppercase}
+header{padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);flex-wrap:wrap;gap:8px}
+.logo{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700}
+.logo .arrow{color:var(--text-dim);font-weight:300}
+.header-right{display:flex;align-items:center;gap:10px}
+.timer{font-size:13px;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.status-pill{display:flex;align-items:center;gap:8px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface-alt);transition:all .3s}
+.status-pill.listening{border-color:var(--green);background:rgba(34,197,94,.08);color:var(--green)}
+.status-pill.stopped{border-color:var(--red);background:rgba(239,68,68,.08);color:var(--red)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--red)}
+.status-pill.listening .status-dot{background:var(--green);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+.error-banner{padding:12px 20px;background:rgba(239,68,68,.12);border-bottom:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:13px;display:none;flex-shrink:0}
+.error-banner.visible{display:block}
+.waveform-bar{height:36px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;display:none;align-items:center;justify-content:center;gap:2px;padding:0 20px}
+.waveform-bar.visible{display:flex}
+.waveform-bar span{display:block;width:3px;border-radius:2px;background:var(--accent-ua-light);animation:wb 1.2s ease-in-out infinite}
+@keyframes wb{0%,100%{transform:scaleY(.3);opacity:.4}50%{transform:scaleY(1);opacity:1}}
+.controls{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.btn-start{background:var(--green);color:#fff}
+.btn-stop{background:var(--red);color:#fff}
+.btn-clear,.btn-icon{background:var(--surface-alt);color:var(--text-dim);border:1px solid var(--border)}
+.btn-icon{padding:10px 12px}
+select.lang-select{padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-alt);color:var(--text);font-family:inherit;font-size:13px}
+.font-control{margin-left:auto;display:flex;align-items:center;gap:6px}
+.font-control label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+.font-control button{width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.columns{flex:1;display:grid;grid-template-columns:1fr 2fr;overflow:hidden}
+.col{display:flex;flex-direction:column;overflow:hidden}
+.col+.col{border-left:1px solid var(--border)}
+.col-header{padding:8px 20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.col-es .col-header{color:var(--accent-es);background:rgba(245,158,11,.05)}
+.col-ua .col-header{color:var(--accent-ua-light);background:rgba(59,130,246,.05)}
+.header-buttons{display:flex;gap:5px}
+.btn-copy{padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface-alt);color:var(--text-dim);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-copy:hover{color:var(--text);border-color:var(--text-dim)}
+.btn-copy.copied{color:var(--green);border-color:var(--green)}
+.transcript{flex:1;overflow-y:auto;padding:16px 20px}
+.transcript::-webkit-scrollbar{width:5px}
+.transcript::-webkit-scrollbar-track{background:transparent}
+.transcript::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.line{padding:8px 0;line-height:1.5;border-bottom:1px solid rgba(255,255,255,.04);animation:si .3s ease}
+.line.interim{color:var(--text-dim);font-style:italic}
+.col-ua .line{font-weight:600;color:var(--accent-ua-light)}
+.col-ua .line.interim{color:rgba(96,165,250,.45)}
+.line.highlight{background:rgba(245,158,11,.15);border-radius:4px;padding:8px 6px}
+@keyframes si{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-dim);gap:8px;text-align:center;padding:20px}
+.empty-state .icon{font-size:36px;opacity:.4}
+.empty-state p{font-size:13px;line-height:1.5}
+.search-bar{padding:6px 16px;border-bottom:1px solid var(--border);display:none;background:var(--surface)}
+.search-bar.visible{display:flex;align-items:center;gap:8px}
+.search-bar input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-family:inherit}
+.search-bar input:focus{outline:none;border-color:var(--accent-ua-light)}
+.search-count{font-size:11px;color:var(--text-dim)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal-overlay.visible{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:700;color:var(--accent-ua-light)}
+.modal-close{width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);color:var(--text-dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:20px;overflow-y:auto;flex:1;font-size:17px;line-height:1.7;color:var(--text);white-space:pre-wrap}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+.columns.fullscreen-ua .col-es{display:none}
+.columns.fullscreen-ua{grid-template-columns:1fr}
+.columns.fullscreen-ua .col-ua .line{font-size:34px}
+@media(max-width:700px){.columns{grid-template-columns:1fr}.col+.col{border-left:none;border-top:1px solid var(--border)}.col{min-height:0;flex:1}}
+</style>
+</head>
+<body>
+<div class="school-banner"><span class="school-name">I.E.S. AVERROES — CÓRDOBA</span></div>
+<header>
+<div class="logo"><span>🇪🇸</span><span class="arrow">→</span><span id="flagTarget">🇺🇦</span><span>Traducción en vivo</span></div>
+<div class="header-right"><span class="timer" id="timer">00:00:00</span><div class="status-pill stopped" id="statusPill"><span class="status-dot"></span><span id="statusText">Detenido</span></div></div>
+</header>
+<div class="error-banner" id="errorBanner"></div>
+<div class="waveform-bar" id="waveformBar"></div>
+<div class="controls">
+<button class="btn btn-start" id="btnStart" onclick="startListening()">🎤 Iniciar</button>
+<button class="btn btn-stop" id="btnStop" onclick="stopListening()" style="display:none">⏹ Detener</button>
+<button class="btn btn-clear" onclick="clearAll()">Limpiar</button>
+<select class="lang-select" id="langSelect" onchange="changeLang()"><option value="uk">🇺🇦 Ucraniano</option><option value="ar">🇸🇦 Árabe</option><option value="zh">🇨🇳 Chino</option><option value="ro">🇷🇴 Rumano</option><option value="fr">🇫🇷 Francés</option><option value="en">🇬🇧 Inglés</option><option value="pt">🇵🇹 Portugués</option><option value="de">🇩🇪 Alemán</option><option value="it">🇮🇹 Italiano</option><option value="pl">🇵🇱 Polaco</option><option value="ru">🇷🇺 Ruso</option></select>
+<button class="btn btn-icon" onclick="toggleTheme()">🌗</button>
+<button class="btn btn-icon" onclick="downloadTXT()">📄</button>
+<button class="btn btn-icon" onclick="toggleSearch()">🔍</button>
+<div class="font-control"><label>Texto</label><button onclick="changeFontSize(-2)">−</button><button onclick="changeFontSize(2)">+</button></div>
+</div>
+<div class="search-bar" id="searchBar"><input type="text" id="searchInput" placeholder="Buscar en la traducción..." oninput="doSearch()"><span class="search-count" id="searchCount"></span><button class="btn-copy" onclick="toggleSearch()">✕</button></div>
+<div class="columns" id="columnsContainer">
+<div class="col col-es"><div class="col-header">Español — Original <span class="header-buttons"><button class="btn-copy" id="btnCopyES" onclick="copyES()">📋 Copiar</button><button class="btn-copy" onclick="showSummaryES()">📝 Resumen</button><button class="btn-copy" onclick="emailSummary()">📧</button></span></div><div class="transcript" id="esPanel"><div class="empty-state"><div class="icon">🎤</div><p>Pulsa «Iniciar» y empieza a hablar.</p></div></div></div>
+<div class="col col-ua"><div class="col-header"><span id="targetLabel">Українська — Переклад</span> <span class="header-buttons"><button class="btn-copy" id="btnCopyUA" onclick="copyUA()">📋 Copiar</button><button class="btn-copy" onclick="showSummaryUA()">📝 Резюме</button><button class="btn-copy" onclick="emailSummaryUA()">📧</button><button class="btn-copy" onclick="speakUA()">🔊</button><button class="btn-copy" id="btnFullscreen" onclick="toggleFullscreen()">🔲</button></span></div><div class="transcript" id="uaPanel"><div class="empty-state"><div class="icon">🇺🇦</div><p>Тут з'явиться переклад</p></div></div></div>
+</div>
+<div class="modal-overlay" id="summaryModal"><div class="modal-box"><div class="modal-header"><span id="summaryTitle">📝 Resumen</span><button class="modal-close" onclick="closeSummary()">✕</button></div><div class="modal-body" id="summaryContent"></div><div class="modal-footer"><button class="btn-copy" id="btnCopySummary" onclick="copySummary()">📋 Copiar resumen</button></div></div></div>
+<script>
+(function(){var w=document.getElementById('waveformBar');for(var i=0;i<40;i++){var s=document.createElement('span');s.style.animationDelay=(Math.random()*0.8).toFixed(2)+'s';s.style.height=Math.floor(6+Math.random()*26)+'px';w.appendChild(s);}})();
+(function(){
+var recognition=null,listening=false,szES=22,szUA=28,tTimer=null,targetLang='uk',timerInterval=null,timerSeconds=0;
+var flags={uk:'🇺🇦',ar:'🇸🇦',zh:'🇨🇳',ro:'🇷🇴',fr:'🇫🇷',en:'🇬🇧',pt:'🇵🇹',de:'🇩🇪',it:'🇮🇹',pl:'🇵🇱',ru:'🇷🇺'};
+var langNames={uk:'Українська — Переклад',ar:'العربية — ترجمة',zh:'中文 — 翻译',ro:'Română — Traducere',fr:'Français — Traduction',en:'English — Translation',pt:'Português — Tradução',de:'Deutsch — Übersetzung',it:'Italiano — Traduzione',pl:'Polski — Tłumaczenie',ru:'Русский — Перевод'};
+function esP(){return document.getElementById('esPanel')}
+function uaP(){return document.getElementById('uaPanel')}
+var tCache={};
+function tr(text){var t=text.trim();if(!t)return Promise.resolve('');var k=targetLang+':'+t;if(tCache[k])return Promise.resolve(tCache[k]);return fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl='+targetLang+'&dt=t&q='+encodeURIComponent(t)).then(function(r){return r.json()}).then(function(d){var o='';if(d&&d[0])for(var i=0;i<d[0].length;i++){if(d[0][i][0])o+=d[0][i][0]}if(o){tCache[k]=o;return o}return t}).catch(function(){return t})}
+function startTimer(){timerSeconds=0;updTimer();timerInterval=setInterval(function(){timerSeconds++;updTimer()},1000)}
+function stopTimer(){if(timerInterval)clearInterval(timerInterval)}
+function updTimer(){var h=Math.floor(timerSeconds/3600),m=Math.floor((timerSeconds%3600)/60),s=timerSeconds%60;document.getElementById('timer').textContent=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function scroll(el){requestAnimationFrame(function(){el.scrollTop=el.scrollHeight})}
+function clearE(c){var e=c.querySelector('.empty-state');if(e)e.remove()}
+function addLine(c,text,ua){clearE(c);var d=document.createElement('div');d.className='line';d.textContent=text;d.style.fontSize=(ua?szUA:szES)+'px';c.appendChild(d);scroll(c);return d}
+window._iES=null;window._iUA=null;
+function setInterim(c,text,ua){clearE(c);var ref=ua?'_iUA':'_iES';if(!window[ref]){window[ref]=document.createElement('div');window[ref].className='line interim';window[ref].style.fontSize=(ua?szUA:szES)+'px';c.appendChild(window[ref])}window[ref].textContent=text;scroll(c)}
+function rmInterim(ua){var ref=ua?'_iUA':'_iES';if(window[ref]){window[ref].remove();window[ref]=null}}
+function showErr(m){var b=document.getElementById('errorBanner');b.textContent=m;b.classList.add('visible')}
+function hideErr(){document.getElementById('errorBanner').classList.remove('visible')}
+function build(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){showErr('Navegador no compatible. Usa Chrome.');return null}var r=new SR();r.lang='es-ES';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;r.onstart=hideErr;r.onresult=function(ev){var fin='',int='';for(var i=ev.resultIndex;i<ev.results.length;i++){if(ev.results[i].isFinal)fin+=ev.results[i][0].transcript;else int+=ev.results[i][0].transcript}if(fin){rmInterim(false);rmInterim(true);addLine(esP(),fin,false);var cached=tCache[targetLang+':'+fin.trim()];if(cached){addLine(uaP(),cached,true)}else{var ph=addLine(uaP(),'…',true);ph.style.opacity='0.4';tr(fin).then(function(t){ph.textContent=t;ph.style.opacity='1';scroll(uaP())})}}if(int){setInterim(esP(),int,false);clearTimeout(tTimer);tTimer=setTimeout(function(){if(!listening)return;tr(int).then(function(t){if(listening&&window._iES)setInterim(uaP(),t,true)})},250)}};r.onend=function(){if(!listening)return;setTimeout(function(){if(!listening)return;try{recognition=build();if(recognition)recognition.start()}catch(e){}},80)};r.onerror=function(ev){if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){showErr('⚠️ Micrófono bloqueado. Permite el acceso y recarga.');stopListening()}};return r}
+window.startListening=function(){recognition=build();if(!recognition)return;listening=true;try{recognition.start()}catch(e){showErr('Error: '+e.message);return}startTimer();document.getElementById('waveformBar').classList.add('visible');document.getElementById('btnStart').style.display='none';document.getElementById('btnStop').style.display='inline-flex';document.getElementById('statusPill').className='status-pill listening';document.getElementById('statusText').textContent='Escuchando…'};
+window.stopListening=function(){listening=false;if(recognition){try{recognition.stop()}catch(e){}recognition=null}rmInterim(false);rmInterim(true);stopTimer();document.getElementById('waveformBar').classList.remove('visible');document.getElementById('btnStart').style.display='inline-flex';document.getElementById('btnStop').style.display='none';document.getElementById('statusPill').className='status-pill stopped';document.getElementById('statusText').textContent='Detenido'};
+window.clearAll=function(){esP().innerHTML='<div class="empty-state"><div class="icon">🎤</div><p>Pulsa «Iniciar» y empieza a hablar</p></div>';uaP().innerHTML='<div class="empty-state"><div class="icon">🇺🇦</div><p>Тут з\'явиться переклад</p></div>';window._iES=null;window._iUA=null;timerSeconds=0;updTimer()};
+window.changeFontSize=function(d){szES=Math.max(14,Math.min(48,szES+d));szUA=Math.max(16,Math.min(52,szUA+d));document.querySelectorAll('.col-es .line').forEach(function(el){el.style.fontSize=szES+'px'});document.querySelectorAll('.col-ua .line').forEach(function(el){el.style.fontSize=szUA+'px'})};
+window.changeLang=function(){targetLang=document.getElementById('langSelect').value;document.getElementById('flagTarget').textContent=flags[targetLang]||'🌐';document.getElementById('targetLabel').textContent=langNames[targetLang]||'Traducción'};
+window.toggleTheme=function(){var h=document.documentElement;h.getAttribute('data-theme')==='light'?h.removeAttribute('data-theme'):h.setAttribute('data-theme','light')};
+window.copyES=function(){var lines=esP().querySelectorAll('.line:not(.interim)');var text=Array.from(lines).map(function(l){return l.textContent}).join('\n');if(!text)return;navigator.clipboard.writeText(text).then(function(){var b=document.getElementById('btnCopyES');b.textContent='✅';b.classList.add('copied');setTimeout(function(){b.textContent='📋 Copiar';b.classList.remove('copied')},2000)})};
+window.copyUA=function(){var lines=uaP().querySelectorAll('.line:not(.interim)');var text=Array.from(lines).map(function(l){return l.textContent}).join('\n');if(!text)return;navigator.clipboard.writeText(text).then(function(){var b=document.getElementById('btnCopyUA');b.textContent='✅';b.classList.add('copied');setTimeout(function(){b.textContent='📋 Copiar';b.classList.remove('copied')},2000)})};
+window.speakUA=function(){var lines=uaP().querySelectorAll('.line:not(.interim)');var text=Array.from(lines).map(function(l){return l.textContent}).join('. ');if(!text)return;if(window.speechSynthesis.speaking){window.speechSynthesis.cancel();return}var u=new SpeechSynthesisUtterance(text);u.lang=targetLang;u.rate=0.9;window.speechSynthesis.speak(u)};
+window.toggleFullscreen=function(){var c=document.getElementById('columnsContainer');var b=document.getElementById('btnFullscreen');c.classList.toggle('fullscreen-ua');b.textContent=c.classList.contains('fullscreen-ua')?'↩':'🔲'};
+window.toggleSearch=function(){var b=document.getElementById('searchBar');b.classList.toggle('visible');if(b.classList.contains('visible'))document.getElementById('searchInput').focus();else{document.getElementById('searchInput').value='';clrHL()}};
+window.doSearch=function(){clrHL();var q=document.getElementById('searchInput').value.trim().toLowerCase();if(!q){document.getElementById('searchCount').textContent='';return}var n=0;uaP().querySelectorAll('.line:not(.interim)').forEach(function(l){if(l.textContent.toLowerCase().indexOf(q)>=0){l.classList.add('highlight');n++}});document.getElementById('searchCount').textContent=n+' resultado'+(n!==1?'s':'')};
+function clrHL(){uaP().querySelectorAll('.highlight').forEach(function(l){l.classList.remove('highlight')})}
+window.downloadTXT=function(){var el=esP().querySelectorAll('.line:not(.interim)');var ul=uaP().querySelectorAll('.line:not(.interim)');if(!el.length){showErr('No hay texto.');return}var t='TRANSCRIPCIÓN — I.E.S. AVERROES\nDuración: '+document.getElementById('timer').textContent+' | '+new Date().toLocaleDateString('es-ES')+'\n\n═══ ESPAÑOL ═══\n\n';el.forEach(function(l){t+=l.textContent+'\n\n'});t+='\n═══ TRADUCCIÓN ═══\n\n';ul.forEach(function(l){t+=l.textContent+'\n\n'});var blob=new Blob([t],{type:'text/plain;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='clase_'+new Date().toISOString().slice(0,10)+'.txt';a.click();URL.revokeObjectURL(a.href)};
+var lastSummaryES='';var lastSummaryUA='';
+var promptES='Analiza la siguiente transcripción de una clase. Genera un resumen ordenado de todo lo relacionado con la materia que se está explicando en clase, eliminando cualquier comentario que no esté relacionado con ella (saludos, interrupciones, llamadas de atención, comentarios sobre comportamiento, bromas, etc.). El resumen debe estar perfectamente estructurado con secciones claras y bullet points (•). Después incluye un apartado "📚 GLOSARIO" con los conceptos clave mencionados en clase y su explicación breve. Después incluye un apartado "✏️ PREGUNTAS DE DESARROLLO" con 5 preguntas a desarrollar sobre la temática resumida para comprobar si el alumno ha comprendido el tema. Después incluye un apartado "🔘 PREGUNTAS TIPO TEST" con 5 preguntas tipo test, cada una con 4 opciones (A, B, C, D) de las cuales solo una es correcta. Indica la respuesta correcta al final de cada pregunta entre paréntesis. Responde únicamente con el contenido solicitado, sin introducciones ni comentarios adicionales. Transcripción de la clase:\n\n';
+var promptUA='Проаналізуй наступну транскрипцію уроку. Створи впорядковане резюме УКРАЇНСЬКОЮ МОВОЮ всього, що стосується навчального предмета, який пояснюється на уроці, виключивши будь-які коментарі, що не стосуються теми (привітання, перерви, зауваження щодо поведінки, жарти тощо). Резюме має бути чітко структурованим з розділами та маркерами (•). Потім додай розділ "📚 ГЛОСАРІЙ" з ключовими поняттями, згаданими на уроці, та їх коротким поясненням. Потім додай розділ "✏️ ПИТАННЯ ДЛЯ РОЗГОРНУТОЇ ВІДПОВІДІ" з 5 питаннями для розгорнутої відповіді за темою резюме, щоб перевірити, чи учень зрозумів тему. Потім додай розділ "🔘 ТЕСТОВІ ПИТАННЯ" з 5 тестовими питаннями, кожне з 4 варіантами відповідей (A, B, C, D), з яких лише одна правильна. Вкажи правильну відповідь у дужках після кожного питання. Відповідай лише запитаним змістом, без вступів та додаткових коментарів. Транскрипція уроку:\n\n';
+var freeModels=['mistralai/mistral-small-3.1-24b-instruct:free','google/gemma-3-12b-it:free','meta-llama/llama-3.3-70b-instruct:free','openrouter/free'];
+function generateSummary(lang,callback,modelIdx){var idx=modelIdx||0;if(idx>=freeModels.length){callback('Error: ningún modelo disponible. Inténtalo de nuevo en unos minutos.');return}var el=esP().querySelectorAll('.line:not(.interim)');if(!el.length){showErr('No hay texto.');return}var lines=Array.from(el).map(function(l){return l.textContent.trim()}).filter(function(l){return l.length>5});var seen={};var unique=[];lines.forEach(function(l){if(!seen[l]){seen[l]=1;unique.push(l)}});var text=unique.join('. ');var prompt=(lang==='es'?promptES:promptUA)+text;fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer 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'},body:JSON.stringify({model:freeModels[idx],messages:[{role:'user',content:prompt}],max_tokens:3000,temperature:0.2})}).then(function(r){return r.json()}).then(function(d){var t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;if(t){if(lang==='es')lastSummaryES=t;else lastSummaryUA=t;callback(t)}else{generateSummary(lang,callback,idx+1)}}).catch(function(){generateSummary(lang,callback,idx+1)})}
+window.showSummaryES=function(){var modal=document.getElementById('summaryModal');var content=document.getElementById('summaryContent');document.getElementById('summaryTitle').textContent='📝 Resumen IA — Español';content.textContent='⏳ Generando resumen con IA...';modal.classList.add('visible');generateSummary('es',function(t){content.textContent=t})};
+window.showSummaryUA=function(){var modal=document.getElementById('summaryModal');var content=document.getElementById('summaryContent');document.getElementById('summaryTitle').textContent='📝 Резюме IA — Українська';content.textContent='⏳ Генерування резюме з ІА...';modal.classList.add('visible');generateSummary('ua',function(t){content.textContent=t})};
+window.emailSummary=function(){if(lastSummaryES){var subject=encodeURIComponent('Resumen de clase — I.E.S. Averroes — '+new Date().toLocaleDateString('es-ES'));var body=encodeURIComponent('RESUMEN DE CLASE — I.E.S. AVERROES\nFecha: '+new Date().toLocaleDateString('es-ES')+'\n\n'+lastSummaryES);window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+subject+'&body='+body,'_blank')}else{showErr('⏳ Generando resumen con IA...');generateSummary('es',function(t){hideErr();var subject=encodeURIComponent('Resumen de clase — I.E.S. Averroes — '+new Date().toLocaleDateString('es-ES'));var body=encodeURIComponent('RESUMEN DE CLASE — I.E.S. AVERROES\nFecha: '+new Date().toLocaleDateString('es-ES')+'\n\n'+t);window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+subject+'&body='+body,'_blank')})}};
+window.emailSummaryUA=function(){if(lastSummaryUA){var subject=encodeURIComponent('Резюме уроку — I.E.S. Averroes — '+new Date().toLocaleDateString('es-ES'));var body=encodeURIComponent('РЕЗЮМЕ УРОКУ — I.E.S. AVERROES\nДата: '+new Date().toLocaleDateString('es-ES')+'\n\n'+lastSummaryUA);window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+subject+'&body='+body,'_blank')}else{showErr('⏳ Генерування резюме...');generateSummary('ua',function(t){hideErr();var subject=encodeURIComponent('Резюме уроку — I.E.S. Averroes — '+new Date().toLocaleDateString('es-ES'));var body=encodeURIComponent('РЕЗЮМЕ УРОКУ — I.E.S. AVERROES\nДата: '+new Date().toLocaleDateString('es-ES')+'\n\n'+t);window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+subject+'&body='+body,'_blank')})}};
+window.closeSummary=function(){document.getElementById('summaryModal').classList.remove('visible')};
+window.copySummary=function(){var t=document.getElementById('summaryContent').textContent;if(!t)return;navigator.clipboard.writeText(t);var b=document.getElementById('btnCopySummary');b.textContent='✅';b.classList.add('copied');setTimeout(function(){b.textContent='📋 Copiar resumen';b.classList.remove('copied')},2000)};
+})();
+</script>
+</body>
+</html>
